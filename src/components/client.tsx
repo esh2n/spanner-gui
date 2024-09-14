@@ -22,7 +22,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
 	Clipboard,
 	Code,
-	Database,
 	History,
 	Play,
 	MoreHorizontal,
@@ -66,6 +65,8 @@ export default function SpannerSQLClient() {
 	const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 	const [instances, setInstances] = useState<string[]>([]);
 	const [databases, setDatabases] = useState<string[]>([]);
+	const [isInitializing, setIsInitializing] = useState(false);
+	const [isFetchingDatabases, setIsFetchingDatabases] = useState(false);
 	const { toast } = useToast();
 
 	const initializeSpanner = async () => {
@@ -78,6 +79,12 @@ export default function SpannerSQLClient() {
 			return;
 		}
 
+		setIsInitializing(true);
+		setInstances([]);
+		setInstance("");
+		setDatabases([]);
+		setDatabase("");
+
 		try {
 			const response = await fetch("/api/spanner", {
 				method: "POST",
@@ -87,6 +94,7 @@ export default function SpannerSQLClient() {
 				body: JSON.stringify({ type: "instances", projectId }),
 			});
 			const data = await response.json();
+			console.log("Instances response:", data);
 			if (response.ok) {
 				setInstances(data);
 				toast({
@@ -96,18 +104,25 @@ export default function SpannerSQLClient() {
 			} else {
 				throw new Error(data.error || "Failed to fetch instances");
 			}
-		} catch (error) {
+		} catch (error: any) {
 			console.error("Failed to fetch instances:", error);
 			toast({
 				title: "Error",
-				description: "Failed to fetch instances. Please try again.",
+				description: `Failed to fetch instances: ${error.message || error}`,
 				variant: "destructive",
 			});
+		} finally {
+			setIsInitializing(false);
 		}
 	};
 
-	const fetchDatabases = async () => {
-		if (!instance) return;
+	const fetchDatabases = async (selectedInstanceId: string) => {
+		if (!selectedInstanceId) return;
+
+		console.log(`Fetching databases for instance: ${selectedInstanceId}`);
+		setIsFetchingDatabases(true);
+		setDatabases([]);
+		setDatabase("");
 
 		try {
 			const response = await fetch("/api/spanner", {
@@ -118,23 +133,35 @@ export default function SpannerSQLClient() {
 				body: JSON.stringify({
 					type: "databases",
 					projectId,
-					instanceId: instance,
+					instanceId: selectedInstanceId,
 				}),
 			});
 			const data = await response.json();
+			console.log("Databases response:", data);
 			if (response.ok) {
 				setDatabases(data);
+				toast({
+					title: "Success",
+					description: "Databases fetched successfully.",
+				});
 			} else {
 				throw new Error(data.error || "Failed to fetch databases");
 			}
-		} catch (error) {
+		} catch (error: any) {
 			console.error("Failed to fetch databases:", error);
 			toast({
 				title: "Error",
-				description: "Failed to fetch databases. Please try again.",
+				description: `Failed to fetch databases: ${error.message || error}`,
 				variant: "destructive",
 			});
+		} finally {
+			setIsFetchingDatabases(false);
 		}
+	};
+
+	const handleInstanceChange = (value: string) => {
+		setInstance(value);
+		fetchDatabases(value);
 	};
 
 	const formatQuery = () => {
@@ -174,7 +201,7 @@ export default function SpannerSQLClient() {
 				.replace(/\s+/g, " ")
 				.replace(/\s*([(),])\s*/g, "$1 ")
 				.split(/\b(SELECT|FROM|WHERE|AND|OR|ORDER BY|GROUP BY|HAVING|LIMIT)\b/)
-				.map((part, index, array) => {
+				.map((part) => {
 					if (reservedWords.includes(part.trim().toUpperCase())) {
 						return `\n${part.trim()}\n  `;
 					}
@@ -213,6 +240,7 @@ export default function SpannerSQLClient() {
 				}),
 			});
 			const data = await response.json();
+			console.log("Query response:", data);
 			if (response.ok) {
 				setResults(data);
 				setIsDialogOpen(false);
@@ -223,11 +251,11 @@ export default function SpannerSQLClient() {
 			} else {
 				throw new Error(data.error || "Failed to execute query");
 			}
-		} catch (error) {
+		} catch (error: any) {
 			console.error("Failed to execute query:", error);
 			toast({
 				title: "Error",
-				description: "Failed to execute query. Please try again.",
+				description: `Failed to execute query: ${error.message || error}`,
 				variant: "destructive",
 			});
 		}
@@ -279,17 +307,16 @@ export default function SpannerSQLClient() {
 							onChange={(e) => setProjectId(e.target.value)}
 							className="flex-grow"
 						/>
-						<Button onClick={initializeSpanner}>Initialize</Button>
+						<Button onClick={initializeSpanner} disabled={isInitializing}>
+							{isInitializing ? "Initializing..." : "Initialize"}
+						</Button>
 					</div>
 					<div className="flex space-x-2">
-						<Select
-							onValueChange={(value) => {
-								setInstance(value);
-								fetchDatabases();
-							}}
-							value={instance}
-						>
-							<SelectTrigger className="w-[200px]">
+						<Select onValueChange={handleInstanceChange} value={instance}>
+							<SelectTrigger
+								className="w-[200px]"
+								disabled={isInitializing || instances.length === 0}
+							>
 								<SelectValue placeholder="Select instance" />
 							</SelectTrigger>
 							<SelectContent>
@@ -300,9 +327,21 @@ export default function SpannerSQLClient() {
 								))}
 							</SelectContent>
 						</Select>
-						<Select onValueChange={setDatabase} value={database}>
+						<Select
+							onValueChange={setDatabase}
+							value={database}
+							disabled={
+								!instance || isFetchingDatabases || databases.length === 0
+							}
+						>
 							<SelectTrigger className="w-[200px]">
-								<SelectValue placeholder="Select database" />
+								<SelectValue
+									placeholder={
+										isFetchingDatabases
+											? "Fetching databases..."
+											: "Select database"
+									}
+								/>
 							</SelectTrigger>
 							<SelectContent>
 								{databases.map((db) => (
@@ -351,7 +390,7 @@ export default function SpannerSQLClient() {
 									<Clipboard className="mr-2 h-4 w-4" /> Copy
 								</Button>
 							</div>
-							<Button onClick={executeQuery}>
+							<Button onClick={executeQuery} disabled={!database}>
 								<Play className="mr-2 h-4 w-4" /> Execute
 							</Button>
 						</CardFooter>
@@ -366,33 +405,38 @@ export default function SpannerSQLClient() {
 								</CardDescription>
 							</CardHeader>
 							<CardContent>
-								<ScrollArea className="h-[400px]">
-									<Table>
-										<TableHeader>
-											<TableRow>
-												{Object.keys(results[0]).map((key) => (
-													<TableHead key={key} className="font-bold">
-														{key}
-													</TableHead>
-												))}
-											</TableRow>
-										</TableHeader>
-										<TableBody>
-											{results.map((row, index) => (
-												<TableRow
-													key={row.id || `row-${index}`}
-													className={index % 2 === 0 ? "bg-muted/50" : ""}
-												>
-													{Object.entries(row).map(([key, value]) => (
-														<TableCell key={`${row.id || index}-${key}`}>
-															{String(value)}
-														</TableCell>
-													))}
+								{/* 横スクロールを有効にするためのラッパー */}
+								<div className="overflow-x-auto">
+									<ScrollArea className="h-[400px]">
+										<Table className="min-w-max">
+											<TableHeader>
+												<TableRow>
+													{results[0] &&
+														Object.keys(results[0]).map((key) => (
+															<TableHead key={key} className="font-bold">
+																{key}
+															</TableHead>
+														))}
 												</TableRow>
-											))}
-										</TableBody>
-									</Table>
-								</ScrollArea>
+											</TableHeader>
+											<TableBody>
+												{results.map((row, index) => (
+													<TableRow
+														key={row.id || `row-${index}`}
+														className={index % 2 === 0 ? "bg-muted/50" : ""}
+													>
+														{row &&
+															Object.entries(row).map(([key, value]) => (
+																<TableCell key={`${row.id || index}-${key}`}>
+																	{String(value)}
+																</TableCell>
+															))}
+													</TableRow>
+												))}
+											</TableBody>
+										</Table>
+									</ScrollArea>
+								</div>
 							</CardContent>
 							<CardFooter>
 								<Button
@@ -470,42 +514,50 @@ export default function SpannerSQLClient() {
 														<DialogHeader>
 															<DialogTitle>Query Results</DialogTitle>
 														</DialogHeader>
-														<ScrollArea className="h-[400px]">
-															<Table>
-																<TableHeader>
-																	<TableRow>
-																		{Object.keys(item.results[0]).map((key) => (
-																			<TableHead
-																				key={key}
-																				className="font-bold"
-																			>
-																				{key}
-																			</TableHead>
-																		))}
-																	</TableRow>
-																</TableHeader>
-																<TableBody>
-																	{item.results.map((row, rowIndex) => (
-																		<TableRow
-																			key={row.id || `row-${rowIndex}`}
-																			className={
-																				rowIndex % 2 === 0 ? "bg-muted/50" : ""
-																			}
-																		>
-																			{Object.entries(row).map(
-																				([key, value]) => (
-																					<TableCell
-																						key={`${row.id || rowIndex}-${key}`}
-																					>
-																						{String(value)}
-																					</TableCell>
-																				),
-																			)}
+														{/* 横スクロールを有効にするためのラッパー */}
+														<div className="overflow-x-auto">
+															<ScrollArea className="h-[400px]">
+																<Table className="min-w-max">
+																	<TableHeader>
+																		<TableRow>
+																			{item.results[0] &&
+																				Object.keys(item.results[0]).map(
+																					(key) => (
+																						<TableHead
+																							key={key}
+																							className="font-bold"
+																						>
+																							{key}
+																						</TableHead>
+																					),
+																				)}
 																		</TableRow>
-																	))}
-																</TableBody>
-															</Table>
-														</ScrollArea>
+																	</TableHeader>
+																	<TableBody>
+																		{item.results.map((row, rowIndex) => (
+																			<TableRow
+																				key={row.id || `row-${rowIndex}`}
+																				className={
+																					rowIndex % 2 === 0
+																						? "bg-muted/50"
+																						: ""
+																				}
+																			>
+																				{Object.entries(row).map(
+																					([key, value]) => (
+																						<TableCell
+																							key={`${row.id || rowIndex}-${key}`}
+																						>
+																							{String(value)}
+																						</TableCell>
+																					),
+																				)}
+																			</TableRow>
+																		))}
+																	</TableBody>
+																</Table>
+															</ScrollArea>
+														</div>
 													</DialogContent>
 												</Dialog>
 											</div>

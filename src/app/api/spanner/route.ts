@@ -1,4 +1,3 @@
-// src/app/api/spanner/route.ts
 import { type NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
@@ -8,8 +7,8 @@ export async function POST(request: NextRequest) {
 		"GOOGLE_APPLICATION_CREDENTIALS:",
 		process.env.GOOGLE_APPLICATION_CREDENTIALS,
 	);
+	console.log("Received request:", body);
 
-	// 動的に @google-cloud/spanner をインポート
 	const { Spanner } = await import("@google-cloud/spanner");
 
 	const spanner = new Spanner({
@@ -34,9 +33,9 @@ export async function POST(request: NextRequest) {
 async function getInstances(spanner: any) {
 	try {
 		const [instances] = await spanner.getInstances();
-		console.log("instances:", instances);
+		console.log("Fetched instances:", instances);
 		return NextResponse.json(instances.map((instance: any) => instance.id));
-	} catch (error) {
+	} catch (error: any) {
 		console.error("Failed to fetch instances:", error);
 		return NextResponse.json(
 			{ error: "Failed to fetch instances" },
@@ -47,10 +46,12 @@ async function getInstances(spanner: any) {
 
 async function getDatabases(spanner: any, instanceId: string) {
 	try {
+		console.log(`Fetching databases for instance: ${instanceId}`);
 		const instance = spanner.instance(instanceId);
 		const [databases] = await instance.getDatabases();
+		console.log("Fetched databases:", databases);
 		return NextResponse.json(databases.map((database: any) => database.id));
-	} catch (error) {
+	} catch (error: any) {
 		console.error("Failed to fetch databases:", error);
 		return NextResponse.json(
 			{ error: "Failed to fetch databases" },
@@ -66,11 +67,14 @@ async function executeQuery(
 	query: string,
 ) {
 	try {
+		console.log(`Executing query on database: ${databaseId}`);
 		const instance = spanner.instance(instanceId);
 		const database = instance.database(databaseId);
 		const [rows] = await database.run(query);
-		return NextResponse.json(rows);
-	} catch (error) {
+		console.log("Query results:", rows);
+		const plainRows = rows.map((row: any) => row.toJSON());
+		return NextResponse.json(plainRows);
+	} catch (error: any) {
 		console.error("Failed to execute query:", error);
 		return NextResponse.json(
 			{ error: "Failed to execute query" },
