@@ -1,36 +1,107 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🌐 Spanner GUI SQL Client
 
-## Getting Started
+🚀 A simple and user-friendly GUI client for Google Cloud Spanner, built with Next.js and React.
 
-First, run the development server:
+## 🌟 Features
+
+- 🔍 Easy navigation of Spanner instances and databases
+- ⚡ Execute SQL queries
+- 📊 View query results in a clean, tabular format
+- 📜 Query history for quick access to past operations
+- 🎨 Syntax highlighting and query formatting
+- 📱 Responsive design for desktop and mobile use
+
+## 📦 Installation
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/esh2n/spanner-gui.git
+cd spanner-gui
+bun install
+bun run dev.tauri
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🚀 Quick Start
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 1. Set up Google Cloud credentials
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Ensure you have set up your Google Cloud credentials. You can do this by setting the `GOOGLE_APPLICATION_CREDENTIALS` environment variable to point to your service account key file.
 
-## Learn More
+```shellscript
+export GOOGLE_APPLICATION_CREDENTIALS="/path/to/your/service-account-key.json"
+```
 
-To learn more about Next.js, take a look at the following resources:
+### 2. Run the development server
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```shellscript
+bun run dev.tauri
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🖥 Usage
 
-## Deploy on Vercel
+1. Enter your Google Cloud Project ID and click "Initialize"
+2. Select a Spanner instance from the dropdown
+3. Choose a database from the selected instance
+4. Write your SQL query in the editor
+5. Click "Execute" to run the query
+6. View results in the table below
+7. Access query history in the "History" tab
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🛠 API Reference
+
+### POST /api/spanner
+
+Handles all Spanner-related operations.
+
+#### Request Body
+
+```typescript
+{
+  type: 'instances' | 'databases' | 'query',
+  projectId: string,
+  instanceId?: string,
+  databaseId?: string,
+  query?: string
+}
+```
+
+#### Response
+
+- For `instances`: Array of instance names
+- For `databases`: Array of database names
+- For `query`: Array of result rows
+
+
+## 🤝 Contributing
+
+We welcome contributions! Here's how you can help:
+
+1. 🍴 Fork the repository
+2. 🌿 Create your feature branch: `git checkout -b my-new-feature`
+3. 💾 Commit your changes: `git commit -am 'Add some feature'`
+4. 🚀 Push to the branch: `git push origin my-new-feature`
+5. 🎉 Submit a pull request
+
+
+## 📝 TODO
+
+- 🔒 Implement user authentication
+- 📊 Add visual query plan explanation
+- 🔄 Support for DML operations (INSERT, UPDATE, DELETE)
+- 📈 Query performance metrics
+- 🌓 Dark mode support
+- 🧪 Comprehensive unit and integration testing
+
+
+## 📜 License
+
+MIT
+
+## 🙏 Acknowledgements
+
+- [Next.js](https://nextjs.org/)
+- [React](https://reactjs.org/)
+- [Tauri](https://tauri.app/)
+- [Google Cloud Spanner](https://cloud.google.com/spanner)
+- [Tailwind CSS](https://tailwindcss.com/)
+- [shadcn/ui](https://ui.shadcn.com/)
